@@ -1,0 +1,7 @@
+pre-push:
+  parallel: true
+  commands:
+    lint:
+      run: pnpm lint
+    test:
+      run: pnpm test
