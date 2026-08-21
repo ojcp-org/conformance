@@ -137,6 +137,19 @@ Schemas are vendored from [`ojcp-org/ojcp`](https://github.com/ojcp-org/ojcp). T
 pnpm sync-schemas
 ```
 
+## Experimental user-mandate fixtures
+
+`USER_MANDATE_FIXTURES` defines authorization decisions proposed by
+[OJCP RFC 0003](https://github.com/ojcp-org/ojcp/pull/9): platform identity, candidate identity,
+and user authorization are separate claims. The fixtures cover mandate absence, issuer admission,
+agent-key binding, ATS and employer binding, candidate-data substitution, expiry, revocation, and
+single-use replay.
+
+They are deliberately **semantic fixtures**, not an SD-JWT VC implementation. An integration must
+verify HTTP signatures, credential signatures, holder proof, and revocation data before passing
+the corresponding facts to `evaluateUserMandateFixture`. This API and fixture set remain
+experimental until RFC 0003 is accepted.
+
 ## Contributing
 
 See the [OJCP contributing guide](https://github.com/ojcp-org/ojcp/blob/main/CONTRIBUTING.md).
