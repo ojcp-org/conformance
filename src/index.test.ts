@@ -30,7 +30,7 @@ describe("validateManifest", () => {
       },
       mcp_endpoint: "https://careers.acme.com/mcp",
       tools: ["search_jobs", "get_job_detail", "begin_application"],
-      apply_paths: ["ats_direct", "adaptive_apply"],
+      apply_paths: ["ats_direct", "provider_hosted"],
       rate_limits: { anonymous_rps: 10, authenticated_rps: 50 },
     });
     expect(valid).toBe(true);
@@ -87,7 +87,7 @@ describe("validateJobPosting", () => {
       remote_policy: "remote",
       apply_paths: [
         {
-          type: "adaptive_apply",
+          type: "provider_hosted",
           supports_agent_submission: true,
           url: "https://careers.acme.com/apply/swe-001",
         },
