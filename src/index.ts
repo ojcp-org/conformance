@@ -4,6 +4,16 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+export {
+  evaluateUserMandateFixture,
+  USER_MANDATE_FIXTURES,
+  USER_MANDATE_FIXTURE_VERSION,
+  type MandatedAction,
+  type UserMandate,
+  type UserMandateFailure,
+  type UserMandateFixture,
+} from "./user-mandate-fixtures.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMAS_DIR = resolve(__dirname, "../schemas");
 
