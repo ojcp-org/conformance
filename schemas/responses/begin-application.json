@@ -29,7 +29,7 @@
         },
         "product_name": {
           "type": "string",
-          "description": "Vendor product name for this apply path (e.g., 'Adaptive Apply', 'Indeed Apply')."
+          "description": "Vendor product name for this apply path (e.g., 'Indeed Apply', 'Easy Apply'). Informational only."
         },
         "url": {
           "type": "string",
@@ -132,6 +132,11 @@
       "items": { "$ref": "https://ojcp.dev/schemas/v0.1/verification-step.json" },
       "description": "Identity verification steps required before the application can proceed. Present only when status is 'pending_verification'."
     },
+    "verification_deadline": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp after which incomplete verifications cause the application to expire. Default: 24 hours from begin_application for fast-tier verifications, 14 days when any slow-tier verification (employment, education, background_check) is required. See spec § Asynchronous Verification."
+    },
     "warnings": {
       "type": "array",
       "items": {
@@ -140,7 +145,7 @@
         "properties": {
           "code": {
             "type": "string",
-            "enum": ["fields_ignored", "scope_exceeded", "deprecated_field"],
+            "enum": ["fields_ignored", "scope_exceeded", "deprecated_field", "stale_data"],
             "description": "Warning code."
           },
           "message": {

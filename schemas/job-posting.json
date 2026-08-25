@@ -166,12 +166,12 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["ats_direct", "adaptive_apply", "apply_anywhere", "platform_apply", "email_apply", "external_url", "custom"],
+          "enum": ["ats_direct", "provider_hosted", "platform_native", "email", "external_redirect", "custom"],
           "description": "The application mechanism type."
         },
         "product_name": {
           "type": "string",
-          "description": "Optional vendor product name for this apply path (e.g., 'Adaptive Apply', 'Indeed Apply', 'Easy Apply')."
+          "description": "Optional vendor product name for this apply path (e.g., 'Indeed Apply', 'Easy Apply'). Informational only."
         },
         "url": {
           "type": "string",

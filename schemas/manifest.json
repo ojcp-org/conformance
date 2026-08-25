@@ -92,11 +92,10 @@
         "type": "string",
         "enum": [
           "ats_direct",
-          "adaptive_apply",
-          "apply_anywhere",
-          "platform_apply",
-          "email_apply",
-          "external_url",
+          "provider_hosted",
+          "platform_native",
+          "email",
+          "external_redirect",
           "custom"
         ]
       },
@@ -114,6 +113,32 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Optional OAuth-style scopes that unlock additional capabilities."
+        },
+        "agent_signatures": {
+          "type": "object",
+          "description": "Declares support for verifiable agent identity via RFC 9421 HTTP Message Signatures (see the Agent Identity section).",
+          "properties": {
+            "supported": {
+              "type": "boolean",
+              "description": "Whether the provider verifies RFC 9421 agent request signatures."
+            },
+            "algorithms": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["ed25519", "ecdsa-p256-sha256", "ecdsa-p384-sha384", "rsa-pss-sha512"]
+              },
+              "description": "Accepted RFC 9421 signature algorithm labels. 'ed25519' is RECOMMENDED."
+            },
+            "required_for": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["begin_application", "submit_application", "application_prefill", "full_profile", "restricted_feed"]
+              },
+              "description": "Context tokens where a verified agent identity is mandatory. See the Agent Identity section for how each token matches an incoming request."
+            }
+          }
         }
       }
     },
@@ -132,6 +157,72 @@
         "burst_limit": {
           "type": "integer",
           "description": "Maximum number of concurrent requests allowed before throttling."
+        }
+      }
+    },
+    "resume_upload": {
+      "type": "object",
+      "description": "Optional resume upload endpoint. When declared, agents with local resume files can POST them to obtain a hosted resume_url for use in submit_application. Subject to the manifest's rate_limits and upload-specific caps. See spec § Resume Upload.",
+      "required": ["endpoint"],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL accepting multipart/form-data POST with a 'resume' field. Requires session_token from begin_application as bearer auth."
+        },
+        "max_size_mb": {
+          "type": "integer",
+          "description": "Maximum upload size in megabytes. RECOMMENDED 10.",
+          "default": 10
+        },
+        "max_uploads_per_session": {
+          "type": "integer",
+          "description": "Maximum number of uploads allowed per begin_application session. RECOMMENDED 5.",
+          "default": 5
+        },
+        "accepted_mime_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "MIME types accepted by the upload endpoint. Providers MUST validate by file content, not just the client-supplied Content-Type header.",
+          "default": [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          ]
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "description": "Optional cryptographic signature over the manifest content. When present, agents MUST validate the signature before trusting application_data submissions to this provider. The signature is computed over the manifest with the 'signature' field excluded. See spec § Provider Trust.",
+      "required": ["alg", "kid", "signed_at", "expires_at", "value"],
+      "properties": {
+        "alg": {
+          "type": "string",
+          "enum": ["ES256", "RS256", "ES384", "RS384"],
+          "description": "Signing algorithm. ES256 RECOMMENDED."
+        },
+        "kid": {
+          "type": "string",
+          "description": "Key identifier matching a key in the provider's JWK Set at /.well-known/ojcp-keys.json."
+        },
+        "signed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the signature was created."
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the signature expires. RECOMMENDED 24 hours from signed_at."
+        },
+        "iss": {
+          "type": "string",
+          "description": "The provider domain or identifier this signature attests. Agents MUST verify this matches the domain serving the manifest."
+        },
+        "value": {
+          "type": "string",
+          "description": "Base64url-encoded signature bytes."
         }
       }
     },

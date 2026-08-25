@@ -80,7 +80,7 @@
         "properties": {
           "code": {
             "type": "string",
-            "enum": ["fields_ignored", "scope_exceeded", "deprecated_field", "answer_coerced"],
+            "enum": ["fields_ignored", "scope_exceeded", "deprecated_field", "answer_coerced", "stale_data"],
             "description": "Warning code."
           },
           "message": {
