@@ -149,14 +149,18 @@ const MCP_HEADERS = {
   Accept: "application/json, text/event-stream",
 };
 
+const MCP_PROTOCOL_VERSION = "2025-03-26";
+
 function parseSSEOrJSON(text: string): Record<string, unknown> | null {
-  if (text.startsWith("event:") || text.startsWith("data:")) {
+  // An SSE event may lead with `id:` or `event:` before its `data:` line, so detect the
+  // data line anywhere rather than only at the start of the payload.
+  const dataLines = text.split("\n").filter((l) => l.startsWith("data:"));
+  if (dataLines.length > 0) {
     // Take the last data line — SSE streams may have multiple events
-    const dataLines = text.split("\n").filter((l) => l.startsWith("data:"));
     const lastData = dataLines[dataLines.length - 1];
     return lastData ? JSON.parse(lastData.slice(5).trim()) : null;
   }
-  return JSON.parse(text);
+  return text.trim() ? JSON.parse(text) : null;
 }
 
 function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
@@ -166,24 +170,81 @@ function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-async function mcpCall(
-  endpoint: string,
-  id: number,
-  method: string,
-  params: unknown,
-): Promise<Record<string, unknown> | null> {
-  const res = await fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: MCP_HEADERS,
-    body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-  });
-  return parseSSEOrJSON(await res.text());
+/**
+ * A single MCP conversation. Streamable HTTP servers may be session-ful: the server
+ * assigns `Mcp-Session-Id` on `initialize` and rejects later requests that omit it
+ * (MCP spec, Streamable HTTP transport). Stateless servers return no header and the
+ * session simply stays empty.
+ */
+class McpSession {
+  private sessionId: string | null = null;
+  private initialized = false;
+
+  constructor(private readonly endpoint: string) {}
+
+  private headers(): Record<string, string> {
+    return this.sessionId ? { ...MCP_HEADERS, "Mcp-Session-Id": this.sessionId } : MCP_HEADERS;
+  }
+
+  private async post(payload: Record<string, unknown>): Promise<Response> {
+    return fetchWithTimeout(this.endpoint, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /** Runs the initialize handshake and returns its result body. */
+  async initialize(id: number): Promise<Record<string, unknown> | null> {
+    const res = await this.post({
+      jsonrpc: "2.0",
+      id,
+      method: "initialize",
+      params: {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "ojcp-conformance", version: "0.1.0" },
+      },
+    });
+    this.sessionId = res.headers.get("mcp-session-id");
+    const body = parseSSEOrJSON(await res.text());
+
+    // Servers may refuse requests until the client confirms initialization.
+    await this.post({ jsonrpc: "2.0", method: "notifications/initialized" }).catch(() => undefined);
+    this.initialized = true;
+    return body;
+  }
+
+  async call(
+    id: number,
+    method: string,
+    params: unknown,
+  ): Promise<Record<string, unknown> | null> {
+    if (!this.initialized) await this.initialize(id * 1000);
+    const res = await this.post({ jsonrpc: "2.0", id, method, params });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} from ${method}${text ? `: ${text.slice(0, 200)}` : ""}`);
+    }
+    return parseSSEOrJSON(text);
+  }
 }
 
 function extractToolResult(body: Record<string, unknown> | null): Record<string, unknown> | null {
   const result = body?.result as Record<string, unknown> | undefined;
+  if (result?.structuredContent) return result.structuredContent as Record<string, unknown>;
   const content = (result?.content as Array<{ text: string }>)?.[0];
   return content?.text ? JSON.parse(content.text) : null;
+}
+
+/** Reads `jobs[0].ojcp_id` out of an unvalidated search_jobs payload. */
+function firstJobId(payload: Record<string, unknown> | null): string | null {
+  const jobs = payload?.jobs;
+  if (!Array.isArray(jobs) || jobs.length === 0) return null;
+  const first: unknown = jobs[0];
+  if (!first || typeof first !== "object" || !("ojcp_id" in first)) return null;
+  const id = first.ojcp_id;
+  return typeof id === "string" ? id : null;
 }
 
 // ── Conformance Suite ──
@@ -249,13 +310,10 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
     : skip("manifest-has-mcp-endpoint", "No mcp_endpoint declared");
 
   // ── 4. Probe MCP endpoint ──
-  if (mcpEndpoint) {
+  const session = mcpEndpoint ? new McpSession(mcpEndpoint) : null;
+  if (session) {
     try {
-      const body = await mcpCall(mcpEndpoint, 1, "initialize", {
-        protocolVersion: "2025-03-26",
-        capabilities: {},
-        clientInfo: { name: "ojcp-conformance", version: "0.1.0" },
-      });
+      const body = await session.initialize(1);
       const result = body?.result as Record<string, unknown> | undefined;
       const serverInfo = result?.serverInfo as Record<string, unknown> | undefined;
       serverInfo
@@ -270,25 +328,25 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
   let cachedJobId: string | null | undefined;
   async function getFirstJobId(): Promise<string | null> {
     if (cachedJobId !== undefined) return cachedJobId;
-    if (!mcpEndpoint) return (cachedJobId = null);
-    const body = await mcpCall(mcpEndpoint, 10, "tools/call", {
+    if (!session) return (cachedJobId = null);
+    const body = await session.call(10, "tools/call", {
       name: "search_jobs",
       arguments: { query: "engineer", pagination: { limit: 1 } },
     });
     const data = extractToolResult(body);
-    cachedJobId = (data as any)?.jobs?.[0]?.ojcp_id ?? null;
+    cachedJobId = firstJobId(data);
     return cachedJobId!;
   }
 
   // ── 5. search_jobs ──
-  if (mcpEndpoint && tools?.includes("search_jobs")) {
+  if (session && tools?.includes("search_jobs")) {
     try {
-      const body = await mcpCall(mcpEndpoint, 2, "tools/call", {
+      const body = await session.call(2, "tools/call", {
         name: "search_jobs",
         arguments: { query: "engineer" },
       });
       const data = extractToolResult(body);
-      const jobs = (data as any)?.jobs;
+      const jobs = data?.jobs;
       if (Array.isArray(jobs)) {
         pass("search-jobs-returns-jobs", `${jobs.length} jobs returned`);
         if (jobs.length > 0) {
@@ -306,16 +364,16 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
   }
 
   // ── 6. get_job_detail ──
-  if (mcpEndpoint && tools?.includes("get_job_detail")) {
+  if (session && tools?.includes("get_job_detail")) {
     try {
       const jobId = await getFirstJobId();
       if (jobId) {
-        const body = await mcpCall(mcpEndpoint, 4, "tools/call", {
+        const body = await session.call(4, "tools/call", {
           name: "get_job_detail",
           arguments: { job_id: jobId },
         });
         const detail = extractToolResult(body);
-        (detail as any)?.job
+        detail?.job
           ? pass("get-job-detail-returns-job")
           : fail("get-job-detail-returns-job", "Response missing job object");
       } else {
@@ -327,16 +385,16 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
   }
 
   // ── 7. begin_application ──
-  if (mcpEndpoint && tools?.includes("begin_application")) {
+  if (session && tools?.includes("begin_application")) {
     try {
       const jobId = await getFirstJobId();
       if (jobId) {
-        const body = await mcpCall(mcpEndpoint, 6, "tools/call", {
+        const body = await session.call(6, "tools/call", {
           name: "begin_application",
           arguments: { job_id: jobId },
         });
         const app = extractToolResult(body);
-        (app as any)?.application_id && (app as any)?.session_token
+        app?.application_id && app?.session_token
           ? pass("begin-application-returns-session")
           : fail("begin-application-returns-session", "Missing application_id or session_token");
       } else {
