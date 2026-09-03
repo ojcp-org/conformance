@@ -13,9 +13,16 @@ const SCHEMA_FILES = [
   "job-posting.json",
   "candidate-context.json",
   "agent-declaration.json",
+  "eeo-data.json",
   "verification-step.json",
   "verification-proof.json",
   "verifier-manifest.json",
+  "tools/search-jobs-input.json",
+  "tools/get-job-detail-input.json",
+  "tools/get-employer-context-input.json",
+  "tools/begin-application-input.json",
+  "tools/submit-application-input.json",
+  "tools/check-application-status-input.json",
   "responses/search-jobs.json",
   "responses/job-detail.json",
   "responses/employer-context.json",
@@ -23,6 +30,7 @@ const SCHEMA_FILES = [
   "responses/submit-application.json",
   "responses/application-status.json",
   "responses/error.json",
+  "responses/find-providers.json",
 ] as const;
 
 async function syncSchemas(): Promise<void> {
