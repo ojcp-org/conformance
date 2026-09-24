@@ -215,11 +215,7 @@ class McpSession {
     return body;
   }
 
-  async call(
-    id: number,
-    method: string,
-    params: unknown,
-  ): Promise<Record<string, unknown> | null> {
+  async call(id: number, method: string, params: unknown): Promise<Record<string, unknown> | null> {
     if (!this.initialized) await this.initialize(id * 1000);
     const res = await this.post({ jsonrpc: "2.0", id, method, params });
     const text = await res.text();
