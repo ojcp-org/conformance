@@ -38,6 +38,11 @@
         "ojcp_employer_id": {
           "type": "string",
           "description": "OJCP identifier for the employer."
+        },
+        "official_domains": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Hostnames the employer designates as legitimate sources for its postings, e.g. its careers site and ATS hosts ('careers.acme.com', 'acme.myworkdayjobs.com'). Agents MAY corroborate official_job_url against this list at the host level. Because ATS hosts are shared across tenants, match the full host, not the registrable domain."
         }
       }
     },
@@ -59,7 +64,7 @@
     "official_job_url": {
       "type": "string",
       "format": "uri",
-      "description": "The canonical public web URL of the job description page on the employer's official careers site or ATS. Serves as a candidate-facing trust and verification anchor: agents SHOULD verify that its registrable domain matches the provider's verified domain (see Provider Trust / .well-known/ojcp-keys.json)."
+      "description": "The canonical public web URL of the job description page on the employer's official careers site or ATS. A candidate-facing verification anchor; MUST be an https URL. Its trust is rooted in the provider that serves it (a verified, signed manifest), not in the URL's own domain, since an employer publishing through a third-party ATS has a canonical URL on the ATS vendor's domain. Agents MAY corroborate the host against employer.official_domains where declared. See spec § JobPosting."
     },
     "employmentType": {
       "type": "string",
@@ -70,21 +75,15 @@
       "description": "Required experience level. Standard values: entry, mid, senior, lead, director, executive. Providers MAY use additional values."
     },
     "jobLocation": {
-      "type": "object",
-      "properties": {
-        "@type": {
-          "type": "string",
-          "const": "Place"
-        },
-        "address": {
-          "type": "object",
-          "properties": {
-            "addressLocality": { "type": "string" },
-            "addressRegion": { "type": "string" },
-            "addressCountry": { "type": "string" }
-          }
+      "description": "Where the role is based: a single Place, or an array of Place when the employer accepts the role in more than one location. schema.org/JobPosting already permits both. Providers MUST NOT reduce a multi-location role to one of its locations — that asserts a restriction the employer never stated. Omit the field only when no location is known.",
+      "oneOf": [
+        { "$ref": "#/$defs/Place" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Place" },
+          "minItems": 1
         }
-      }
+      ]
     },
     "baseSalary": {
       "type": "object",
@@ -170,6 +169,23 @@
     }
   },
   "$defs": {
+    "Place": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "const": "Place"
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "addressLocality": { "type": "string" },
+            "addressRegion": { "type": "string" },
+            "addressCountry": { "type": "string" }
+          }
+        }
+      }
+    },
     "ApplyPath": {
       "type": "object",
       "required": ["type", "supports_agent_submission"],
