@@ -58,6 +58,7 @@ Validate a local JSON file against OJCP schemas.
 ```bash
 npx @ojcp/conformance validate manifest.json
 npx @ojcp/conformance validate job-posting.json --type job-posting
+npx @ojcp/conformance validate ojcp-agent.json --type agent-identity
 ```
 
 Auto-detects schema type from the JSON structure. Use `--type` to override.
@@ -87,6 +88,7 @@ import {
   validateAgentDeclaration,
   validateVerificationProof,
   validateVerifierManifest,
+  validateAgentIdentityDocument,
   validateToolResponse,
   runConformanceSuite,
 } from "@ojcp/conformance";
@@ -149,6 +151,35 @@ They are deliberately **semantic fixtures**, not an SD-JWT VC implementation. An
 verify HTTP signatures, credential signatures, holder proof, and revocation data before passing
 the corresponding facts to `evaluateUserMandateFixture`. This API and fixture set remain
 experimental until RFC 0003 is accepted.
+
+## Agent identity binding fixtures
+
+`AGENT_IDENTITY_BINDING_FIXTURES` pins spec § Identity Binding as amended by
+[RFC 0001 erratum E1](https://github.com/ojcp-org/ojcp/issues/11): whether a `Signature-Agent`
+origin, already proven by an RFC 9421 signature, may speak for the declared `agent_id`.
+
+- **Namespace binding** — the reversed host prefixes the `agent_id` on a label boundary
+  (`wayfarer.ai` → `ai.wayfarer.*`). A subdomain cannot claim its parent's names; a tenant cannot
+  claim a sibling's.
+- **Delegated binding** — otherwise, the host the `agent_id` names serves
+  `/.well-known/ojcp-agent.json` listing permitted signers. Never fetched when the namespace binds.
+- **Grammar** — lowercase LDH labels, rejected with `agent_id_malformed`, never normalized.
+
+`evaluateAgentIdentityBinding` is a reference implementation a provider can test against, with the
+document fetch injected so the caller keeps its own SSRF-hardened client. Every result reports
+`documentFetched`, so a provider that fetches when it must not is caught too. Signature
+verification itself stays with the integration.
+
+```ts
+import { evaluateAgentIdentityBinding } from "@ojcp/conformance";
+
+evaluateAgentIdentityBinding({
+  agentId: "com.acme.agent",
+  signatureAgentOrigin: "https://acme.agentplatform.example",
+  fetchIdentityDocument: (url) => myHardenedFetchJson(url), // https://agent.acme.com/.well-known/ojcp-agent.json
+});
+// → { verified: true, mechanism: "delegated", documentFetched: true }
+```
 
 ## Contributing
 

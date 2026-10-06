@@ -13,6 +13,7 @@ const SCHEMA_FILES = [
   "job-posting.json",
   "candidate-context.json",
   "agent-declaration.json",
+  "agent-identity.json",
   "eeo-data.json",
   "verification-step.json",
   "verification-proof.json",
