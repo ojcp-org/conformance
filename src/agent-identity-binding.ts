@@ -109,7 +109,14 @@ export function evaluateAgentIdentityBinding(input: {
     return { verified: false, failure: "agent_identity_mismatch", documentFetched: false };
   }
 
-  const document = input.fetchIdentityDocument(identityDocumentUrl(agentId));
+  const url = identityDocumentUrl(agentId);
+  if (!URL.canParse(url)) {
+    // A grammar-valid id can reverse to no usable hostname (`4.3.2.1.agent` → `agent.1.2.3.4`,
+    // whose numeric final label no DNS name has). There is nothing to fetch, so no binding.
+    return { verified: false, failure: "agent_identity_mismatch", documentFetched: false };
+  }
+
+  const document = input.fetchIdentityDocument(url);
   const authorized =
     document !== null &&
     validateDocument(document) === true &&
@@ -226,10 +233,10 @@ export const AGENT_IDENTITY_BINDING_FIXTURES: AgentIdentityBindingFixture[] = [
   ),
   vector(
     "namespace-ip-literal-never-binds",
-    "An IP-literal origin speaks for no namespace.",
+    "An IP-literal origin speaks for no namespace, and `agent.1.2.3.4` is no host to fetch from.",
     "4.3.2.1.agent",
     "https://1.2.3.4",
-    MISMATCH,
+    { verified: false, failure: "agent_identity_mismatch", documentFetched: false },
   ),
 
   // § Delegated Binding.
