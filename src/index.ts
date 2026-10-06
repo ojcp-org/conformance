@@ -13,6 +13,22 @@ export {
   type UserMandateFailure,
   type UserMandateFixture,
 } from "./user-mandate-fixtures.js";
+export {
+  AGENT_IDENTITY_BINDING_FIXTURES,
+  AGENT_IDENTITY_BINDING_FIXTURE_VERSION,
+  bindsByNamespace,
+  evaluateAgentIdentityBinding,
+  evaluateAgentIdentityBindingFixture,
+  identityDocumentUrl,
+  isWellFormedAgentId,
+  namespaceOf,
+  serializeOrigin,
+  type AgentIdentityBindingFailure,
+  type AgentIdentityBindingFixture,
+  type AgentIdentityBindingMechanism,
+  type AgentIdentityBindingResult,
+  type AgentIdentityDocument,
+} from "./agent-identity-binding.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMAS_DIR = resolve(__dirname, "../schemas");
@@ -133,6 +149,11 @@ export function validateVerificationProof(proof: unknown): ValidationResult {
 
 export function validateVerifierManifest(manifest: unknown): ValidationResult {
   return validate("verifier-manifest.json", manifest);
+}
+
+/** The `/.well-known/ojcp-agent.json` document an agent's named host serves (spec § Delegated Binding). */
+export function validateAgentIdentityDocument(document: unknown): ValidationResult {
+  return validate("agent-identity.json", document);
 }
 
 export function validateToolResponse(tool: ToolResponseType, response: unknown): ValidationResult {

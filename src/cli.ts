@@ -7,6 +7,7 @@ import {
   runConformanceSuite,
   validateManifest,
   validateJobPosting,
+  validateAgentIdentityDocument,
   type TestResult,
 } from "./index.js";
 
@@ -70,7 +71,7 @@ program
   .command("validate")
   .description("Validate a local JSON file against OJCP schemas")
   .argument("<file>", "Path to JSON file")
-  .option("-t, --type <type>", "Schema type: manifest, job-posting", "auto")
+  .option("-t, --type <type>", "Schema type: manifest, job-posting, agent-identity", "auto")
   .action((file: string, opts: { type: string }) => {
     const data = JSON.parse(readFileSync(file, "utf8"));
 
@@ -78,6 +79,7 @@ program
     if (schemaType === "auto") {
       if (data.ojcp_version && data.tools) schemaType = "manifest";
       else if (data.ojcp_id && data.title) schemaType = "job-posting";
+      else if (data.agent_id && Array.isArray(data.signers)) schemaType = "agent-identity";
       else schemaType = "manifest";
     }
 
@@ -85,7 +87,12 @@ program
     console.log(`  Validating ${chalk.bold(schemaType)}: ${file}`);
     console.log();
 
-    const result = schemaType === "job-posting" ? validateJobPosting(data) : validateManifest(data);
+    const result =
+      schemaType === "job-posting"
+        ? validateJobPosting(data)
+        : schemaType === "agent-identity"
+          ? validateAgentIdentityDocument(data)
+          : validateManifest(data);
 
     if (result.valid) {
       console.log(`  ${chalk.green("\u2713 Valid")}`);
