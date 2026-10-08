@@ -1,12 +1,12 @@
 /**
- * Experimental authorization fixtures for the user-mandate profile proposed
- * in https://github.com/ojcp-org/ojcp/pull/9.
+ * Authorization fixtures for OJCP user mandates — spec § User Mandates.
  *
  * The inputs are verified facts. Credential and HTTP-signature verification
- * deliberately remain the responsibility of each integration.
+ * deliberately remain the responsibility of each integration. The failure classes
+ * are conformance classes; on the wire every one of them is `user_mandate_required`.
  */
 
-export const USER_MANDATE_FIXTURE_VERSION = "0.1-draft";
+export const USER_MANDATE_FIXTURE_VERSION = "0.3";
 
 export type UserMandateFailure =
   | "agent_signature_invalid"
