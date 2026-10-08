@@ -7,6 +7,8 @@ on:
     branches: [main]
   release:
     types: [published]
+  # Manual publish of the version on the selected ref (e.g. to retry a failed release publish).
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -32,7 +34,7 @@ jobs:
   publish:
     name: Publish to npm
     needs: check
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,4 +52,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm sync-schemas
       - run: pnpm build
-      - run: pnpm publish --access public --no-git-checks --provenance
+      # npm trusted publishing (OIDC) needs npm CLI >= 11.5.1; pnpm publish does not perform the
+      # OIDC exchange, so publish with npm. No token: the trusted publisher configured on
+      # npmjs.com for this repository and workflow authorizes the run.
+      - run: npm install -g npm@^11.5.1
+      - run: npm publish --access public --provenance
