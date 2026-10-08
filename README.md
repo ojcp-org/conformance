@@ -181,6 +181,45 @@ evaluateAgentIdentityBinding({
 // → { verified: true, mechanism: "delegated", documentFetched: true }
 ```
 
+## Attribution fixtures
+
+`ATTRIBUTION_FIXTURES` pins spec § Attribution ([RFC 0007](https://github.com/ojcp-org/ojcp/blob/main/docs/rfcs/0007-provider-derived-attribution.md)):
+which evidence credits an application at `begin_application`.
+
+- **Rule order** — a usable `attribution_ref`, then the caller's most recent impression of the job
+  inside the attribution window (last touch, boundary inclusive), then none.
+- **Attributable identity** — a verified `agent_id`, else a provider-issued credential. Anonymous
+  and self-asserted callers are never matched by impression, only by reference.
+- **References** — one that is forged, expired, or bound to another job counts as absent. One
+  issued to another identity is credited as `referredBy`, and the caller's own impression is kept
+  as `applyingImpressionId`.
+- **Submit** — attribution fixed at begin is never replaced; a reference on `submit_application`
+  applies only when begin found nothing.
+
+`evaluateAttribution` is a reference implementation. The `attribution_ref` is opaque, so the
+provider decodes and integrity-checks its own reference and passes the claims in.
+
+```ts
+import { evaluateAttribution } from "@ojcp/conformance";
+
+evaluateAttribution({
+  jobId: "careers.acme.com:swe-42091",
+  now: "2026-10-08T12:00:00Z",
+  windowDays: 30,
+  caller: { verifiedAgentId: "ai.wayfarer.agent" },
+  reference: null, // the agent relayed nothing
+  impressions: [
+    {
+      id: "imp-1",
+      identity: { kind: "verified_agent", id: "ai.wayfarer.agent" },
+      ojcpId: "careers.acme.com:swe-42091",
+      servedAt: "2026-10-07T12:00:00Z",
+    },
+  ],
+});
+// → { method: "impression_match", impressionId: "imp-1" }
+```
+
 ## Contributing
 
 See the [OJCP contributing guide](https://github.com/ojcp-org/ojcp/blob/main/CONTRIBUTING.md).
