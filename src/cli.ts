@@ -4,6 +4,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { readFileSync } from "node:fs";
 import {
+  CONFORMANCE_VERSION,
   runConformanceSuite,
   validateManifest,
   validateJobPosting,
@@ -11,7 +12,7 @@ import {
   type TestResult,
 } from "./index.js";
 
-const VERSION = "0.1.0";
+const VERSION = CONFORMANCE_VERSION;
 
 const icons = {
   passed: chalk.green("\u2713"),

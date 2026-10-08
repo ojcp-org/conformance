@@ -1,5 +1,5 @@
 /**
- * Reference evaluator and fixtures for OJCP attribution — spec § Attribution (RFC 0007).
+ * Reference evaluator and fixtures for OJCP attribution — spec § Attribution.
  *
  * The evaluator decides which evidence credits an application at `begin_application`. Decoding
  * and integrity-checking an `attribution_ref` is the provider's own business, since the reference
@@ -7,7 +7,7 @@
  * its integrity check.
  */
 
-export const ATTRIBUTION_FIXTURE_VERSION = "rfc-0007";
+export const ATTRIBUTION_FIXTURE_VERSION = "0.3";
 
 const DAY_MS = 86_400_000;
 

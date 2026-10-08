@@ -5,7 +5,7 @@ import {
   evaluateAgentIdentityBindingFixture,
 } from "./agent-identity-binding.js";
 
-describe("agent identity binding fixtures (RFC 0001 erratum E1)", () => {
+describe("agent identity binding fixtures (spec § Identity Binding)", () => {
   it("has stable, unique fixture identifiers", () => {
     const ids = AGENT_IDENTITY_BINDING_FIXTURES.map((fixture) => fixture.id);
     expect(new Set(ids).size).toBe(ids.length);

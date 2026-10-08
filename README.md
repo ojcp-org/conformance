@@ -4,7 +4,7 @@
 [![CI](https://github.com/ojcp-org/conformance/actions/workflows/ci.yml/badge.svg)](https://github.com/ojcp-org/conformance/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green)](https://www.apache.org/licenses/LICENSE-2.0)
 
-Conformance test suite for [OJCP](https://ojcp.dev) (Open Job Context Protocol) implementations. Validates that a provider's manifest, job postings, and MCP tool responses conform to the [OJCP v0.1 specification](https://spec.ojcp.dev).
+Conformance test suite for [OJCP](https://ojcp.dev) (Open Job Context Protocol) implementations. Validates that a provider's manifest, job postings, and MCP tool responses conform to the [OJCP specification](https://spec.ojcp.dev) (version 0.3; providers declaring 0.1 or 0.2 remain valid).
 
 ## Quick Start
 
@@ -139,23 +139,21 @@ Schemas are vendored from [`ojcp-org/ojcp`](https://github.com/ojcp-org/ojcp). T
 pnpm sync-schemas
 ```
 
-## Experimental user-mandate fixtures
+## User-mandate fixtures
 
-`USER_MANDATE_FIXTURES` defines authorization decisions proposed by
-[OJCP RFC 0003](https://github.com/ojcp-org/ojcp/pull/9): platform identity, candidate identity,
-and user authorization are separate claims. The fixtures cover mandate absence, issuer admission,
-agent-key binding, ATS and employer binding, candidate-data substitution, expiry, revocation, and
-single-use replay.
+`USER_MANDATE_FIXTURES` pins spec § User Mandates: platform identity, candidate identity, and user
+authorization are separate claims. The fixtures cover mandate absence, issuer admission, agent-key
+binding, ATS and employer binding, candidate-data substitution, expiry, revocation, and single-use
+replay. Each fixture names a failure class; on the wire every one of them is the single error code
+`user_mandate_required`, so a response never reveals which check failed.
 
 They are deliberately **semantic fixtures**, not an SD-JWT VC implementation. An integration must
 verify HTTP signatures, credential signatures, holder proof, and revocation data before passing
-the corresponding facts to `evaluateUserMandateFixture`. This API and fixture set remain
-experimental until RFC 0003 is accepted.
+the corresponding facts to `evaluateUserMandateFixture`.
 
 ## Agent identity binding fixtures
 
-`AGENT_IDENTITY_BINDING_FIXTURES` pins spec § Identity Binding as amended by
-[RFC 0001 erratum E1](https://github.com/ojcp-org/ojcp/issues/11): whether a `Signature-Agent`
+`AGENT_IDENTITY_BINDING_FIXTURES` pins spec § Identity Binding: whether a `Signature-Agent`
 origin, already proven by an RFC 9421 signature, may speak for the declared `agent_id`.
 
 - **Namespace binding** — the reversed host prefixes the `agent_id` on a label boundary
@@ -183,7 +181,7 @@ evaluateAgentIdentityBinding({
 
 ## Attribution fixtures
 
-`ATTRIBUTION_FIXTURES` pins spec § Attribution ([RFC 0007](https://github.com/ojcp-org/ojcp/blob/main/docs/rfcs/0007-provider-derived-attribution.md)):
+`ATTRIBUTION_FIXTURES` pins spec § Attribution:
 which evidence credits an application at `begin_application`.
 
 - **Rule order** — a usable `attribution_ref`, then the caller's most recent impression of the job

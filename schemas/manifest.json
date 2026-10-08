@@ -9,7 +9,7 @@
     "ojcp_version": {
       "type": "string",
       "description": "The OJCP specification version this manifest conforms to.",
-      "enum": ["0.1", "0.2"]
+      "enum": ["0.1", "0.2", "0.3"]
     },
     "provider": {
       "type": "object",
@@ -112,7 +112,7 @@
         "optional_scopes": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Optional OAuth-style scopes that unlock additional capabilities."
+          "description": "Optional OAuth-style scopes that unlock additional capabilities. restricted_feed, granted through the provider's allowlist / onboarding, together with a verified agent identity unlocks private-tier jobs (see spec § Agent-Scoped Visibility)."
         },
         "agent_signatures": {
           "type": "object",

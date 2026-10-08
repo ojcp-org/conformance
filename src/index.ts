@@ -48,6 +48,11 @@ export {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMAS_DIR = resolve(__dirname, "../schemas");
 
+/** This package's version, read from the package.json shipped alongside `dist/` and `schemas/`. */
+export const CONFORMANCE_VERSION: string = JSON.parse(
+  readFileSync(resolve(__dirname, "../package.json"), "utf8"),
+).version;
+
 const FETCH_TIMEOUT_MS = 15_000;
 
 function loadSchema(relativePath: string): Record<string, unknown> {
@@ -239,7 +244,7 @@ class McpSession {
       params: {
         protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: {},
-        clientInfo: { name: "ojcp-conformance", version: "0.1.0" },
+        clientInfo: { name: "ojcp-conformance", version: CONFORMANCE_VERSION },
       },
     });
     this.sessionId = res.headers.get("mcp-session-id");
@@ -267,6 +272,22 @@ function extractToolResult(body: Record<string, unknown> | null): Record<string,
   if (result?.structuredContent) return result.structuredContent as Record<string, unknown>;
   const content = (result?.content as Array<{ text: string }>)?.[0];
   return content?.text ? JSON.parse(content.text) : null;
+}
+
+/**
+ * The provider's error for a failed `tools/call` — a JSON-RPC error (OJCP `error_code` when the
+ * provider sends one) or an `isError` tool result — or null when the call succeeded.
+ */
+function toolError(body: Record<string, unknown> | null): string | null {
+  const error = body?.error as
+    | { code?: number; message?: string; data?: { error_code?: string } }
+    | undefined;
+  if (error) return `${error.data?.error_code ?? `JSON-RPC ${error.code}`}: ${error.message}`;
+  const result = body?.result as
+    | { isError?: boolean; content?: Array<{ text?: string }> }
+    | undefined;
+  if (result?.isError) return result.content?.[0]?.text ?? "tool returned an error";
+  return null;
 }
 
 /** Reads `jobs[0].ojcp_id` out of an unvalidated search_jobs payload. */
@@ -377,7 +398,8 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
         name: "search_jobs",
         arguments: { query: "engineer" },
       });
-      const data = extractToolResult(body);
+      const error = toolError(body);
+      const data = error ? null : extractToolResult(body);
       const jobs = data?.jobs;
       if (Array.isArray(jobs)) {
         pass("search-jobs-returns-jobs", `${jobs.length} jobs returned`);
@@ -388,7 +410,7 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
             : fail("search-jobs-valid-schema", undefined, v.errors ?? undefined);
         }
       } else {
-        fail("search-jobs-returns-jobs", "Response missing jobs array");
+        fail("search-jobs-returns-jobs", error ?? "Response missing jobs array");
       }
     } catch (err) {
       fail("search-jobs-returns-jobs", (err as Error).message);
@@ -404,10 +426,11 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
           name: "get_job_detail",
           arguments: { job_id: jobId },
         });
-        const detail = extractToolResult(body);
+        const error = toolError(body);
+        const detail = error ? null : extractToolResult(body);
         detail?.job
           ? pass("get-job-detail-returns-job")
-          : fail("get-job-detail-returns-job", "Response missing job object");
+          : fail("get-job-detail-returns-job", error ?? "Response missing job object");
       } else {
         skip("get-job-detail-returns-job", "No jobs to test against");
       }
@@ -425,10 +448,14 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
           name: "begin_application",
           arguments: { job_id: jobId },
         });
-        const app = extractToolResult(body);
+        const error = toolError(body);
+        const app = error ? null : extractToolResult(body);
         app?.application_id && app?.session_token
           ? pass("begin-application-returns-session")
-          : fail("begin-application-returns-session", "Missing application_id or session_token");
+          : fail(
+              "begin-application-returns-session",
+              error ?? "Missing application_id or session_token",
+            );
       } else {
         skip("begin-application-returns-session", "No jobs to test against");
       }

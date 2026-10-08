@@ -1,6 +1,6 @@
 /**
- * Reference evaluator and fixtures for OJCP agent identity binding — spec § Identity Binding,
- * as amended by RFC 0001 erratum E1 (https://github.com/ojcp-org/ojcp/issues/11).
+ * Reference evaluator and fixtures for OJCP agent identity binding — spec § Identity Binding
+ * (namespace and delegated binding).
  *
  * The inputs are facts an integration has already established: the HTTP signature verified
  * (spec § Verification steps 1–5) and the `Signature-Agent` origin it was verified against.
@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const AGENT_IDENTITY_BINDING_FIXTURE_VERSION = "rfc-0001-e1";
+export const AGENT_IDENTITY_BINDING_FIXTURE_VERSION = "0.3";
 
 export type AgentIdentityBindingFailure = "agent_id_malformed" | "agent_identity_mismatch";
 

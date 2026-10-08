@@ -5,7 +5,7 @@ import {
   evaluateAttributionFixture,
 } from "./attribution.js";
 
-describe("attribution fixtures (RFC 0007)", () => {
+describe("attribution fixtures (spec § Attribution)", () => {
   it("has stable, unique fixture identifiers", () => {
     const ids = ATTRIBUTION_FIXTURES.map((fixture) => fixture.id);
     expect(new Set(ids).size).toBe(ids.length);
