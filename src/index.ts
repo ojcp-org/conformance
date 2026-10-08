@@ -29,6 +29,21 @@ export {
   type AgentIdentityBindingResult,
   type AgentIdentityDocument,
 } from "./agent-identity-binding.js";
+export {
+  ATTRIBUTION_FIXTURES,
+  ATTRIBUTION_FIXTURE_VERSION,
+  attributableIdentity,
+  evaluateAttribution,
+  evaluateAttributionFixture,
+  evaluateSubmitAttribution,
+  type AttributableIdentity,
+  type AttributionFixture,
+  type AttributionInput,
+  type AttributionReference,
+  type AttributionResult,
+  type Caller,
+  type Impression,
+} from "./attribution.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMAS_DIR = resolve(__dirname, "../schemas");
