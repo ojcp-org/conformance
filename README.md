@@ -77,6 +77,14 @@ Auto-detects schema type from the JSON structure. Use `--type` to override.
 | `search-jobs-valid-schema` | First job validates against JobPosting schema | If jobs returned |
 | `get-job-detail-returns-job` | `get_job_detail` returns a job object | If tool declared |
 | `begin-application-returns-session` | `begin_application` returns session | If tool declared |
+| `fit-score-absent-without-candidate-context` | No job carries `fit_score` or `fit_rationale` when no candidate context was sent | If jobs array returned |
+| `candidate-context-accepted` | `search_jobs` with a `candidate_context` returns a `jobs` array. Skipped, not failed, when the provider rejects it, since a provider may gate candidate context behind an auth scope | If jobs array returned |
+| `fit-score-valid` | Each `fit_score` is a number from 0 to 1; reports how many come with `fit_rationale`. Skipped when the provider returns no score | If candidate context accepted |
+| `candidate-context-over-scope-not-rejected` | A field beyond the declared `consent_scope` is dropped, not rejected; reports whether a `fields_ignored` warning came back | If candidate context accepted |
+
+The candidate-context checks send two extra `search_jobs` calls. Both carry the same synthetic
+profile (two skills, a number of years, a job title) at `fit_scoring` scope; the second adds a
+placeholder `name`, which needs `application_prefill`. No real candidate data is sent.
 
 ## Programmatic API
 
