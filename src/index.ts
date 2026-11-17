@@ -300,6 +300,45 @@ function firstJobId(payload: Record<string, unknown> | null): string | null {
   return typeof id === "string" ? id : null;
 }
 
+/**
+ * Synthetic candidate data for the candidate-context checks. It describes no real person.
+ * Every field is permitted at the declared `fit_scoring` scope (spec § CandidateContext).
+ */
+const CANDIDATE_CONTEXT = {
+  ojcp_candidate_context_version: "0.1",
+  consent_scope: "fit_scoring",
+  skills: ["Python", "SQL"],
+  experience_years: 5,
+  current_title: "Software Engineer",
+};
+
+/** `name` needs `application_prefill` or above, so it exceeds the scope declared above. */
+const OVER_SCOPE_FIELD = "name";
+const OVER_SCOPE_CANDIDATE_CONTEXT = {
+  ...CANDIDATE_CONTEXT,
+  [OVER_SCOPE_FIELD]: "OJCP Conformance Test",
+};
+
+type JobSummary = Record<string, unknown>;
+
+function isScored(job: JobSummary): boolean {
+  return "fit_score" in job || "fit_rationale" in job;
+}
+
+function isValidFitScore(value: unknown): boolean {
+  return typeof value === "number" && value >= 0 && value <= 1;
+}
+
+/** Whether a response carries a `fields_ignored` warning that names `field`. */
+function warnsFieldIgnored(payload: Record<string, unknown> | null, field: string): boolean {
+  const warnings = payload?.warnings;
+  if (!Array.isArray(warnings)) return false;
+  return warnings.some(
+    (w: { code?: unknown; fields?: unknown }) =>
+      w?.code === "fields_ignored" && Array.isArray(w.fields) && w.fields.includes(field),
+  );
+}
+
 // ── Conformance Suite ──
 
 export async function runConformanceSuite(baseUrl: string): Promise<ConformanceReport> {
@@ -392,6 +431,7 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
   }
 
   // ── 5. search_jobs ──
+  let anonymousJobs: JobSummary[] | null = null;
   if (session && tools?.includes("search_jobs")) {
     try {
       const body = await session.call(2, "tools/call", {
@@ -402,6 +442,7 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
       const data = error ? null : extractToolResult(body);
       const jobs = data?.jobs;
       if (Array.isArray(jobs)) {
+        anonymousJobs = jobs as JobSummary[];
         pass("search-jobs-returns-jobs", `${jobs.length} jobs returned`);
         if (jobs.length > 0) {
           const v = validateJobPosting(jobs[0]);
@@ -461,6 +502,91 @@ export async function runConformanceSuite(baseUrl: string): Promise<ConformanceR
       }
     } catch (err) {
       fail("begin-application-returns-session", (err as Error).message);
+    }
+  }
+
+  // ── 8. search_jobs with candidate context ──
+  // Two extra searches, both carrying the synthetic CANDIDATE_CONTEXT above.
+  if (session && anonymousJobs) {
+    const scoredAnonymously = anonymousJobs.filter(isScored).length;
+    scoredAnonymously === 0
+      ? pass("fit-score-absent-without-candidate-context")
+      : fail(
+          "fit-score-absent-without-candidate-context",
+          `${scoredAnonymously} of ${anonymousJobs.length} jobs carry fit_score or fit_rationale, but no candidate_context was sent`,
+        );
+
+    let inScopeJobs: JobSummary[] | null = null;
+    try {
+      const body = await session.call(20, "tools/call", {
+        name: "search_jobs",
+        arguments: { query: "engineer", candidate_context: CANDIDATE_CONTEXT },
+      });
+      const error = toolError(body);
+      const jobs = error ? null : extractToolResult(body)?.jobs;
+      if (Array.isArray(jobs)) {
+        inScopeJobs = jobs as JobSummary[];
+        pass("candidate-context-accepted", `${jobs.length} jobs returned`);
+      } else {
+        // Not a failure: a provider may gate candidate context behind an auth scope.
+        skip(
+          "candidate-context-accepted",
+          `Provider did not accept candidate_context: ${error ?? "response missing jobs array"}`,
+        );
+      }
+    } catch (err) {
+      skip(
+        "candidate-context-accepted",
+        `Provider did not accept candidate_context: ${(err as Error).message}`,
+      );
+    }
+
+    if (inScopeJobs) {
+      const scored = inScopeJobs.filter((job) => "fit_score" in job);
+      const invalid = scored.filter((job) => !isValidFitScore(job.fit_score));
+      const unexplained = scored.filter(
+        (job) => typeof job.fit_rationale !== "string" || job.fit_rationale.length === 0,
+      );
+      if (scored.length === 0) {
+        skip("fit-score-valid", "Provider returned no fit_score");
+      } else if (invalid.length > 0) {
+        fail(
+          "fit-score-valid",
+          `${invalid.length} of ${scored.length} fit_score values are not numbers between 0 and 1`,
+        );
+      } else {
+        pass(
+          "fit-score-valid",
+          unexplained.length > 0
+            ? `${scored.length} jobs scored, ${unexplained.length} without fit_rationale`
+            : `${scored.length} jobs scored, each with fit_rationale`,
+        );
+      }
+
+      try {
+        const body = await session.call(21, "tools/call", {
+          name: "search_jobs",
+          arguments: { query: "engineer", candidate_context: OVER_SCOPE_CANDIDATE_CONTEXT },
+        });
+        const error = toolError(body);
+        const data = error ? null : extractToolResult(body);
+        if (Array.isArray(data?.jobs)) {
+          pass(
+            "candidate-context-over-scope-not-rejected",
+            warnsFieldIgnored(data, OVER_SCOPE_FIELD)
+              ? "fields_ignored warning returned"
+              : "No fields_ignored warning (providers SHOULD return one)",
+          );
+        } else {
+          fail(
+            "candidate-context-over-scope-not-rejected",
+            error ??
+              "Response missing jobs array. Providers MUST drop a field that exceeds the declared consent_scope, not reject the request",
+          );
+        }
+      } catch (err) {
+        fail("candidate-context-over-scope-not-rejected", (err as Error).message);
+      }
     }
   }
 
